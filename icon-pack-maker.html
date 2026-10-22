@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Creador de iconos y punteros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment:#EFE6D6; --panel:#FBF7EE; --ink:#2A2016; --ink-soft:#6b5d4d;
+    --gold:#a9822f; --gold-deep:#7c5f22; --umber:#4a3320; --line:#dccdb2; --white:#fff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--parchment);color:var(--ink);font-family:'Inter',sans-serif;min-height:100vh;}
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 20px 60px;}
+  header h1{font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(26px,4vw,34px);margin:0 0 6px;}
+  header p{margin:0 0 24px;color:var(--ink-soft);font-size:14.5px;max-width:62ch;}
+
+  .type-tabs{display:flex;gap:8px;margin-bottom:18px;}
+  .type-tabs button{
+    flex:1;padding:12px 10px;border-radius:10px;border:1.5px solid var(--line);
+    background:#fff;color:var(--ink-soft);font-family:'Inter';font-weight:600;font-size:13px;cursor:pointer;
+  }
+  .type-tabs button.active{background:var(--umber);color:#fff;border-color:var(--umber);}
+
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:26px;align-items:start;}
+  @media (max-width:820px){.layout{grid-template-columns:1fr;} .stage-col{order:-1;}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;}
+  .panel + .panel{margin-top:18px;}
+  .panel h2{font-family:'Playfair Display',serif;font-weight:500;font-style:italic;font-size:17px;margin:0 0 14px;color:var(--umber);}
+  .field{margin-bottom:16px;} .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:7px;font-weight:500;}
+
+  .upload-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;
+    border:1.5px dashed var(--gold);border-radius:10px;background:#fff;color:var(--gold-deep);
+    font-size:13.5px;font-weight:600;cursor:pointer;}
+  .upload-btn:hover{background:#fff7e8;}
+  input[type=file]{display:none;}
+
+  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .swatch{aspect-ratio:1;border-radius:8px;border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;}
+  .swatch canvas{width:100%;height:100%;display:block;}
+  .swatch.active{border-color:var(--gold);}
+  .swatch span{position:absolute;inset:auto 0 0 0;font-size:8.5px;text-align:center;background:rgba(0,0,0,.45);color:#fff;padding:2px 0;line-height:1.2;}
+
+  input[type=range]{width:100%;accent-color:var(--gold-deep);}
+  .colorline{display:flex;align-items:center;gap:10px;}
+  input[type=color]{width:38px;height:38px;border:none;border-radius:8px;padding:0;background:none;cursor:pointer;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin-top:8px;line-height:1.55;}
+
+  .shape-pick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .shape-pick button{
+    aspect-ratio:1;border-radius:8px;border:1.5px solid var(--line);background:#fff;cursor:pointer;
+    font-size:20px;display:flex;align-items:center;justify-content:center;color:var(--umber);
+  }
+  .shape-pick button.active{border-color:var(--gold);background:#fff7e8;}
+
+  .stage-col{position:sticky;top:20px;}
+  .stage{
+    background:linear-gradient(45deg,#e4e4e4 25%,transparent 25%) -10px 0/20px 20px,
+      linear-gradient(-45deg,#e4e4e4 25%,transparent 25%) -10px 0/20px 20px,
+      linear-gradient(45deg,transparent 75%,#e4e4e4 75%) -10px 0/20px 20px,
+      linear-gradient(-45deg,transparent 75%,#e4e4e4 75%) -10px 0/20px 20px,#f4f4f4;
+    border-radius:16px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    padding:30px;min-height:360px;position:relative;overflow:hidden;touch-action:none;cursor:grab;
+  }
+  .stage.dragging{cursor:grabbing;}
+  #preview{width:280px;height:280px;}
+  .drag-note{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11.5px;color:#8a8a8a;pointer-events:none;}
+  #hotspotMarker{
+    position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
+    border:2px solid #fff;box-shadow:0 0 0 2px #e2306b, 0 1px 4px rgba(0,0,0,.5);
+    background:#e2306b;cursor:grab;display:none;
+  }
+  #hotspotMarker::after{
+    content:'';position:absolute;inset:6px;border-radius:50%;background:#fff;
+  }
+  .actions{display:flex;gap:10px;margin-top:18px;}
+  button.primary,button.secondary{flex:1;padding:13px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;border:none;}
+  button.primary{background:var(--umber);color:#fff;}
+  button.primary:hover{background:#3a2818;}
+  button.secondary{background:#fff;color:var(--umber);border:1.5px solid var(--line);}
+  button.secondary:hover{border-color:var(--gold);}
+  .size-chips{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;justify-content:center;}
+  .size-chips span{font-size:10.5px;color:var(--ink-soft);border:1px solid var(--line);padding:3px 8px;border-radius:20px;background:#fff;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Creador de iconos y punteros</h1>
+    <p>Elige carpeta, archivo o puntero de mouse, sube tu imagen o un patrón, ajústalo y descarga el .ico o .cur listo para Windows.</p>
+  </header>
+
+  <div class="type-tabs">
+    <button data-type="folder" class="active">🗂️ Carpeta</button>
+    <button data-type="file">📄 Archivo</button>
+    <button data-type="pointer">➤ Puntero</button>
+  </div>
+
+  <div class="layout">
+    <div class="controls-col">
+      <div class="panel">
+        <h2>Fondo</h2>
+        <div class="field">
+          <label>Tu imagen</label>
+          <label class="upload-btn" for="fileInput">⤒ Subir imagen</label>
+          <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div class="field"><label>O elige un patrón</label><div class="swatches" id="swatches"></div></div>
+        <div class="field" id="zoomField" style="display:none">
+          <label>Zoom</label>
+          <input type="range" id="zoom" min="100" max="300" value="100">
+          <div class="hint">Arrastra la imagen dentro del marco para reposicionarla.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 id="styleTitle">Estilo de carpeta</h2>
+        <div class="field">
+          <label>Color base</label>
+          <div class="colorline">
+            <input type="color" id="baseColor" value="#4a3320">
+            <div class="hint">Se ve donde tu imagen no cubre.</div>
+          </div>
+        </div>
+        <div class="field" id="shadeField">
+          <label id="shadeLabel">Sombra de la pestaña</label>
+          <input type="range" id="tabShade" min="0" max="60" value="28">
+        </div>
+        <div class="field">
+          <label>Contraste de luz (arriba/abajo)</label>
+          <input type="range" id="lightContrast" min="0" max="60" value="30">
+        </div>
+        <div class="field" id="pointerShapeField" style="display:none">
+          <label>Forma del puntero</label>
+          <div class="shape-pick">
+            <button data-shape="arrow" class="active">➤</button>
+            <button data-shape="star">★</button>
+            <button data-shape="heart">♥</button>
+            <button data-shape="diamond">◆</button>
+          </div>
+          <div class="hint">Haz clic y arrastra el punto rosa sobre la vista previa: ahí es donde realmente "clickea" tu mouse.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage-col">
+      <div class="stage" id="stage">
+        <canvas id="preview" width="512" height="512"></canvas>
+        <div id="hotspotMarker"></div>
+        <div class="drag-note" id="dragNote">arrastra para reposicionar</div>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="downloadPng">Descargar PNG</button>
+        <button class="primary" id="downloadMain">Descargar .ico</button>
+      </div>
+      <div class="size-chips" id="sizeChips">
+        <span>256×256</span><span>128×128</span><span>64×64</span><span>48×48</span><span>32×32</span><span>16×16</span>
+      </div>
+      <div class="hint" id="typeHint" style="margin-top:12px;text-align:center"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CANVAS_SIZE = 512;
+const work = document.createElement('canvas');
+work.width = work.height = CANVAS_SIZE;
+const wctx = work.getContext('2d');
+const preview = document.getElementById('preview');
+const pctx = preview.getContext('2d');
+const stage = document.getElementById('stage');
+const dragNote = document.getElementById('dragNote');
+const hotspotMarker = document.getElementById('hotspotMarker');
+
+let currentType = 'folder';       // folder | file | pointer
+let pointerShape = 'arrow';       // arrow | star | heart | diamond
+let hotspot = {x:0.20*CANVAS_SIZE, y:0.08*CANVAS_SIZE}; // canvas-space coords
+
+// ---------- shape paths (all build a path only; caller fills/clips/strokes) ----------
+function folderPath(ctx, size){
+  const pad=size*0.06, bodyTop=size*0.28, r=size*0.055, tabW=size*0.42, tabH=size*0.09, tabSlant=size*0.05;
+  ctx.beginPath();
+  ctx.moveTo(pad, bodyTop-tabH+r);
+  ctx.arcTo(pad, bodyTop-tabH, pad+r, bodyTop-tabH, r);
+  ctx.lineTo(pad+tabW, bodyTop-tabH);
+  ctx.lineTo(pad+tabW+tabSlant, bodyTop);
+  ctx.lineTo(size-pad-r, bodyTop);
+  ctx.arcTo(size-pad, bodyTop, size-pad, bodyTop+r, r);
+  ctx.lineTo(size-pad, size-pad-r);
+  ctx.arcTo(size-pad, size-pad, size-pad-r, size-pad, r);
+  ctx.lineTo(pad+r, size-pad);
+  ctx.arcTo(pad, size-pad, pad, size-pad-r, r);
+  ctx.lineTo(pad, bodyTop-tabH+r);
+  ctx.closePath();
+}
+function filePath(ctx, size){
+  const pad=size*0.14, r=size*0.045, fold=size*0.22;
+  ctx.beginPath();
+  ctx.moveTo(pad+r, pad);
+  ctx.lineTo(size-pad-fold, pad);
+  ctx.lineTo(size-pad, pad+fold);
+  ctx.lineTo(size-pad, size-pad-r);
+  ctx.arcTo(size-pad, size-pad, size-pad-r, size-pad, r);
+  ctx.lineTo(pad+r, size-pad);
+  ctx.arcTo(pad, size-pad, pad, size-pad-r, r);
+  ctx.lineTo(pad, pad+r);
+  ctx.arcTo(pad, pad, pad+r, pad, r);
+  ctx.closePath();
+}
+function arrowPath(ctx, size){
+  const pts = [[0.20,0.08],[0.20,0.78],[0.34,0.64],[0.45,0.90],[0.56,0.86],[0.44,0.60],[0.70,0.60]];
+  ctx.beginPath();
+  pts.forEach(([x,y],i)=> i===0 ? ctx.moveTo(x*size,y*size) : ctx.lineTo(x*size,y*size));
+  ctx.closePath();
+}
+function starPath(ctx, size){
+  const cx=size/2, cy=size/2, rOuter=size*0.42, rInner=rOuter*0.42;
+  ctx.beginPath();
+  for(let i=0;i<10;i++){
+    const ang = -Math.PI/2 + i*Math.PI/5, r = i%2===0?rOuter:rInner;
+    const x = cx+r*Math.cos(ang), y = cy+r*Math.sin(ang);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+}
+function heartPath(ctx, size){
+  const cx=size/2, cy=size/2+size*0.05, r=size*0.026;
+  ctx.beginPath();
+  for(let t=0;t<=360;t+=4){
+    const rad=t*Math.PI/180;
+    const x=16*Math.pow(Math.sin(rad),3);
+    const y=13*Math.cos(rad)-5*Math.cos(2*rad)-2*Math.cos(3*rad)-Math.cos(4*rad);
+    const px=cx+x*r, py=cy-y*r;
+    t===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+}
+function diamondPath(ctx, size){
+  const pad=size*0.14;
+  ctx.beginPath();
+  ctx.moveTo(size/2,pad); ctx.lineTo(size-pad,size/2); ctx.lineTo(size/2,size-pad); ctx.lineTo(pad,size/2);
+  ctx.closePath();
+}
+function currentPathFn(ctx, size){
+  if(currentType==='folder') return folderPath(ctx,size);
+  if(currentType==='file') return filePath(ctx,size);
+  if(pointerShape==='arrow') return arrowPath(ctx,size);
+  if(pointerShape==='star') return starPath(ctx,size);
+  if(pointerShape==='heart') return heartPath(ctx,size);
+  return diamondPath(ctx,size);
+}
+
+// ---------- pattern generators ----------
+function makePatternCanvas(drawFn, size=256){ const c=document.createElement('canvas'); c.width=c.height=size; drawFn(c.getContext('2d'),size); return c; }
+function rand(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+function drawLeopard(ctx,size,opts={}){
+  const bg=opts.bg||'#d6b280', spot=opts.spot||'#5c3a22', ring=opts.ring||'#3a2414', rnd=rand(opts.seed||1);
+  ctx.fillStyle=bg; ctx.fillRect(0,0,size,size);
+  for(let i=0;i<28;i++){
+    const cx=rnd()*size, cy=rnd()*size, baseR=8+rnd()*10;
+    for(let b=0;b<5;b++){ const ang=rnd()*Math.PI*2, dist=rnd()*baseR*0.6;
+      const bx=cx+dist*Math.cos(ang), by=cy+dist*Math.sin(ang);
+      ctx.strokeStyle=ring; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.ellipse(bx,by,5+rnd()*4,4+rnd()*3,rnd()*Math.PI,0,Math.PI*2); ctx.stroke(); }
+    for(let b=0;b<3;b++){ const ang=rnd()*Math.PI*2, dist=rnd()*baseR*0.4;
+      const bx=cx+dist*Math.cos(ang), by=cy+dist*Math.sin(ang);
+      ctx.fillStyle=spot;
+      ctx.beginPath(); ctx.ellipse(bx,by,3+rnd()*2,2.5+rnd()*2,rnd()*Math.PI,0,Math.PI*2); ctx.fill(); }
+  }
+}
+function drawZebra(ctx,size){
+  ctx.fillStyle='#eee6d4'; ctx.fillRect(0,0,size,size); ctx.fillStyle='#201c1a';
+  let y=-20, idx=0;
+  while(y<size+20){
+    const w=8+Math.random()*8;
+    ctx.beginPath(); ctx.moveTo(-10,y);
+    for(let x=-10;x<=size+10;x+=8) ctx.lineTo(x,y+Math.sin(x*0.02+idx)*7);
+    for(let x=size+10;x>=-10;x-=8) ctx.lineTo(x,y+w+Math.sin(x*0.02+idx)*7);
+    ctx.closePath(); ctx.fill(); y+=w+10+Math.random()*10; idx++;
+  }
+}
+function drawHolo(ctx,size){
+  const colors=['#ffd1e6','#d1e9ff','#dfffe2','#fff4c7','#e9d1ff'];
+  const grad=ctx.createLinearGradient(0,0,size,size);
+  colors.forEach((c,i)=>grad.addColorStop(i/(colors.length-1),c));
+  ctx.fillStyle=grad; ctx.fillRect(0,0,size,size);
+  ctx.strokeStyle='rgba(255,255,255,.8)';
+  for(let i=0;i<45;i++){ const x=Math.random()*size,y=Math.random()*size,s=3+Math.random()*7;
+    ctx.beginPath(); ctx.moveTo(x-s,y); ctx.lineTo(x+s,y); ctx.moveTo(x,y-s); ctx.lineTo(x,y+s); ctx.stroke(); }
+}
+function drawHeartsStars(ctx,size){
+  ctx.fillStyle='#141418'; ctx.fillRect(0,0,size,size);
+  const palette=['#ff5aa0','#ffd65a','#78dcff','#c8ff8c','#ffffff'];
+  function star(cx,cy,r,col){ ctx.fillStyle=col; ctx.beginPath();
+    for(let i=0;i<10;i++){ const ang=Math.PI/2+i*Math.PI/5, rad=i%2===0?r:r*0.4;
+      const x=cx+rad*Math.cos(ang), y=cy-rad*Math.sin(ang); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }
+    ctx.closePath(); ctx.fill(); }
+  function heart(cx,cy,r,col){ ctx.fillStyle=col; ctx.beginPath();
+    for(let t=0;t<=360;t+=8){ const rad=t*Math.PI/180;
+      const x=16*Math.pow(Math.sin(rad),3);
+      const y=13*Math.cos(rad)-5*Math.cos(2*rad)-2*Math.cos(3*rad)-Math.cos(4*rad);
+      const px=cx+x*r/16, py=cy-y*r/16; t===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+    ctx.closePath(); ctx.fill(); }
+  for(let i=0;i<16;i++){ const x=20+Math.random()*(size-40), y=20+Math.random()*(size-40), r=8+Math.random()*12;
+    Math.random()<0.5 ? star(x,y,r,palette[Math.floor(Math.random()*palette.length)])
+                       : heart(x,y,r,palette[Math.floor(Math.random()*palette.length)]); }
+}
+const presets = [
+  {name:'Leopardo', draw:(c,s)=>drawLeopard(c,s,{seed:1})},
+  {name:'Leopardo rosa', draw:(c,s)=>drawLeopard(c,s,{seed:8,bg:'#ffd6e6',spot:'#e67898',ring:'#b43c64'})},
+  {name:'Cebra', draw:drawZebra},
+  {name:'Holográfico', draw:drawHolo},
+  {name:'Corazones Y2K', draw:drawHeartsStars},
+];
+
+// ---------- state ----------
+let bgImage=null, bgPatternCanvas=makePatternCanvas(presets[0].draw), usingUpload=false;
+let imgOffset={x:0,y:0}, imgZoom=1;
+
+const baseColorInput=document.getElementById('baseColor');
+const tabShadeInput=document.getElementById('tabShade');
+const lightContrastInput=document.getElementById('lightContrast');
+const zoomInput=document.getElementById('zoom');
+const zoomField=document.getElementById('zoomField');
+const shadeField=document.getElementById('shadeField');
+const shadeLabel=document.getElementById('shadeLabel');
+const styleTitle=document.getElementById('styleTitle');
+const pointerShapeField=document.getElementById('pointerShapeField');
+const downloadMain=document.getElementById('downloadMain');
+const typeHint=document.getElementById('typeHint');
+
+function buildSwatches(){
+  const wrap=document.getElementById('swatches'); wrap.innerHTML='';
+  presets.forEach((p,i)=>{
+    const div=document.createElement('div'); div.className='swatch'+(i===0?' active':'');
+    const c=document.createElement('canvas'); c.width=64;c.height=64; p.draw(c.getContext('2d'),64);
+    div.appendChild(c);
+    const label=document.createElement('span'); label.textContent=p.name; div.appendChild(label);
+    div.addEventListener('click',()=>{
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+      div.classList.add('active');
+      bgPatternCanvas=makePatternCanvas(p.draw,512); usingUpload=false; zoomField.style.display='none'; render();
+    });
+    wrap.appendChild(div);
+  });
+}
+buildSwatches();
+
+document.getElementById('fileInput').addEventListener('change',(e)=>{
+  const file=e.target.files[0]; if(!file) return;
+  const img=new Image();
+  img.onload=()=>{
+    bgImage=img; usingUpload=true; imgOffset={x:0,y:0}; imgZoom=1; zoomInput.value=100;
+    zoomField.style.display='block';
+    document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+    render();
+  };
+  img.src=URL.createObjectURL(file);
+});
+zoomInput.addEventListener('input',()=>{ imgZoom=zoomInput.value/100; render(); });
+
+// ---------- type & pointer-shape switching ----------
+document.querySelectorAll('.type-tabs button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.type-tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+    updateTypeUI();
+    render();
+  });
+});
+document.querySelectorAll('.shape-pick button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.shape-pick button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    pointerShape = btn.dataset.shape;
+    resetHotspotDefault();
+    render();
+  });
+});
+function resetHotspotDefault(){
+  if(currentType!=='pointer') return;
+  if(pointerShape==='arrow') hotspot={x:0.20*CANVAS_SIZE,y:0.08*CANVAS_SIZE};
+  else hotspot={x:CANVAS_SIZE/2,y:CANVAS_SIZE/2};
+  positionHotspotMarker();
+}
+function updateTypeUI(){
+  if(currentType==='folder'){
+    styleTitle.textContent='Estilo de carpeta';
+    shadeField.style.display='block'; shadeLabel.textContent='Sombra de la pestaña';
+    pointerShapeField.style.display='none';
+    hotspotMarker.style.display='none';
+    downloadMain.textContent='Descargar .ico';
+    typeHint.textContent='Aplícalo desde Propiedades de la carpeta → Personalizar → Cambiar icono.';
+  } else if(currentType==='file'){
+    styleTitle.textContent='Estilo de archivo';
+    shadeField.style.display='block'; shadeLabel.textContent='Sombra del doblez';
+    pointerShapeField.style.display='none';
+    hotspotMarker.style.display='none';
+    downloadMain.textContent='Descargar .ico';
+    typeHint.textContent='Windows solo permite icono propio en accesos directos (.lnk): crea el acceso directo → Propiedades → Cambiar icono.';
+  } else {
+    styleTitle.textContent='Estilo de puntero';
+    shadeField.style.display='none';
+    pointerShapeField.style.display='block';
+    hotspotMarker.style.display='block';
+    downloadMain.textContent='Descargar .cur';
+    typeHint.textContent='Aplícalo en Configuración → Accesibilidad → Puntero del mouse → Diseño personalizado.';
+    resetHotspotDefault();
+  }
+}
+updateTypeUI();
+
+// ---------- drag-to-reposition uploaded image ----------
+let dragging=false, dragStart={x:0,y:0}, offsetStart={x:0,y:0};
+function pointerPos(e){ const rect=stage.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:p.clientX-rect.left,y:p.clientY-rect.top}; }
+stage.addEventListener('pointerdown',(e)=>{
+  if(e.target===hotspotMarker) return;
+  if(!usingUpload) return;
+  dragging=true; stage.classList.add('dragging');
+  dragStart=pointerPos(e); offsetStart={...imgOffset}; dragNote.style.opacity='0';
+});
+window.addEventListener('pointermove',(e)=>{
+  if(!dragging) return;
+  const p=pointerPos(e), scale=CANVAS_SIZE/280;
+  imgOffset.x=offsetStart.x+(p.x-dragStart.x)*scale;
+  imgOffset.y=offsetStart.y+(p.y-dragStart.y)*scale;
+  render();
+});
+window.addEventListener('pointerup',()=>{ dragging=false; stage.classList.remove('dragging'); });
+
+// ---------- hotspot marker dragging ----------
+let hsDragging=false;
+hotspotMarker.addEventListener('pointerdown',(e)=>{ e.stopPropagation(); hsDragging=true; });
+window.addEventListener('pointermove',(e)=>{
+  if(!hsDragging) return;
+  const p=pointerPos(e), scale=CANVAS_SIZE/280;
+  hotspot.x=Math.max(0,Math.min(CANVAS_SIZE,p.x*scale));
+  hotspot.y=Math.max(0,Math.min(CANVAS_SIZE,p.y*scale));
+  positionHotspotMarker();
+});
+window.addEventListener('pointerup',()=>{ hsDragging=false; });
+function positionHotspotMarker(){
+  const scale=280/CANVAS_SIZE;
+  hotspotMarker.style.left = (30 + hotspot.x*scale) + 'px';
+  hotspotMarker.style.top = (30 + hotspot.y*scale) + 'px';
+}
+
+[baseColorInput, tabShadeInput, lightContrastInput].forEach(el=>el.addEventListener('input', render));
+
+// ---------- render ----------
+function render(){
+  const ctx=wctx, size=CANVAS_SIZE;
+  ctx.clearRect(0,0,size,size);
+  ctx.save();
+  currentPathFn(ctx,size);
+  ctx.clip();
+
+  ctx.fillStyle=baseColorInput.value; ctx.fillRect(0,0,size,size);
+
+  if(usingUpload && bgImage){
+    const iw=bgImage.width, ih=bgImage.height;
+    const coverScale=Math.max(size/iw,size/ih)*imgZoom;
+    const dw=iw*coverScale, dh=ih*coverScale;
+    const dx=(size-dw)/2+imgOffset.x, dy=(size-dh)/2+imgOffset.y;
+    ctx.drawImage(bgImage,dx,dy,dw,dh);
+  } else {
+    ctx.drawImage(bgPatternCanvas,0,0,size,size);
+  }
+
+  const lc=lightContrastInput.value/100;
+  const grad=ctx.createLinearGradient(0,0,0,size);
+  grad.addColorStop(0,`rgba(255,255,255,${0.25*lc})`);
+  grad.addColorStop(0.55,'rgba(255,255,255,0)');
+  grad.addColorStop(1,`rgba(0,0,0,${0.28*lc})`);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,size,size);
+
+  if(currentType==='folder'){
+    const bodyTop=size*0.28, tabShade=tabShadeInput.value/100;
+    ctx.fillStyle=`rgba(0,0,0,${tabShade*0.5})`; ctx.fillRect(0,0,size,bodyTop+2);
+  } else if(currentType==='file'){
+    const pad=size*0.14, fold=size*0.22, tabShade=tabShadeInput.value/100;
+    ctx.strokeStyle=`rgba(0,0,0,${0.25+tabShade*0.5})`; ctx.lineWidth=size*0.012;
+    ctx.beginPath(); ctx.moveTo(size-pad-fold,pad); ctx.lineTo(size-pad,pad+fold); ctx.stroke();
+    ctx.fillStyle=`rgba(255,255,255,${0.10+tabShade*0.15})`;
+    ctx.beginPath(); ctx.moveTo(size-pad-fold,pad); ctx.lineTo(size-pad,pad+fold); ctx.lineTo(size-pad-fold,pad+fold); ctx.closePath(); ctx.fill();
+  } else {
+    ctx.lineWidth=size*0.012; ctx.strokeStyle='rgba(0,0,0,.35)';
+    currentPathFn(ctx,size); ctx.stroke();
+  }
+
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.25)'; ctx.shadowBlur=size*0.02; ctx.shadowOffsetY=size*0.01;
+  ctx.globalCompositeOperation='destination-over';
+  currentPathFn(ctx,size); ctx.fillStyle='rgba(0,0,0,1)'; ctx.fill();
+  ctx.restore();
+
+  pctx.clearRect(0,0,size,size); pctx.drawImage(work,0,0);
+  positionHotspotMarker();
+}
+render();
+
+// ---------- export ----------
+function canvasAtSize(size){
+  const c=document.createElement('canvas'); c.width=c.height=size;
+  const cx=c.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+  cx.drawImage(work,0,0,size,size); return c;
+}
+document.getElementById('downloadPng').addEventListener('click',()=>{
+  const link=document.createElement('a');
+  link.download = currentType==='pointer' ? 'puntero.png' : (currentType==='file' ? 'icono_archivo.png' : 'icono_carpeta.png');
+  link.href=work.toDataURL('image/png'); link.click();
+});
+
+async function buildIconContainer(sizes, isCursor){
+  const pngBuffers=[];
+  for(const s of sizes){
+    const c=canvasAtSize(s);
+    const blob=await new Promise(res=>c.toBlob(res,'image/png'));
+    pngBuffers.push(new Uint8Array(await blob.arrayBuffer()));
+  }
+  const numImages=sizes.length, headerSize=6+16*numImages;
+  let totalSize=headerSize; pngBuffers.forEach(b=>totalSize+=b.length);
+  const out=new Uint8Array(totalSize); const dv=new DataView(out.buffer);
+  dv.setUint16(0,0,true); dv.setUint16(2,isCursor?2:1,true); dv.setUint16(4,numImages,true);
+  let offset=headerSize;
+  for(let i=0;i<numImages;i++){
+    const s=sizes[i], buf=pngBuffers[i], entryOff=6+16*i;
+    out[entryOff+0]=s===256?0:s; out[entryOff+1]=s===256?0:s; out[entryOff+2]=0; out[entryOff+3]=0;
+    if(isCursor){
+      const hx=Math.round((hotspot.x/CANVAS_SIZE)*s), hy=Math.round((hotspot.y/CANVAS_SIZE)*s);
+      dv.setUint16(entryOff+4,hx,true); dv.setUint16(entryOff+6,hy,true);
+    } else {
+      dv.setUint16(entryOff+4,1,true); dv.setUint16(entryOff+6,32,true);
+    }
+    dv.setUint32(entryOff+8,buf.length,true); dv.setUint32(entryOff+12,offset,true);
+    out.set(buf,offset); offset+=buf.length;
+  }
+  return new Blob([out],{type:'image/x-icon'});
+}
+
+downloadMain.addEventListener('click', async ()=>{
+  const sizes=[256,128,64,48,32,16];
+  const isCursor = currentType==='pointer';
+  const blob = await buildIconContainer(sizes, isCursor);
+  const link=document.createElement('a');
+  link.download = isCursor ? 'puntero.cur' : (currentType==='file' ? 'icono_archivo.ico' : 'icono_carpeta.ico');
+  link.href=URL.createObjectURL(blob); link.click();
+});
+</script>
+</body>
+</html>
